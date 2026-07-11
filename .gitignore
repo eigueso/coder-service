@@ -1,0 +1,32 @@
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.sw?
+*.suo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pdm-python
+.pdm-build/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

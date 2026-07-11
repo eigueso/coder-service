@@ -1,0 +1,1 @@
+"""coder-service FastAPI backend."""

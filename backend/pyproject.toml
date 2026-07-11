@@ -1,0 +1,33 @@
+[project]
+name = "coder-service-backend"
+version = "0.1.0"
+description = "FastAPI backend that proxies authentication and workspace operations to Coder"
+authors = [
+    {name = "coder-service", email = "dev@localhost"},
+]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "httpx>=0.28.0",
+    "pydantic-settings>=2.6.0",
+    "python-dotenv>=1.0.0",
+    "email-validator>=2.0.0",
+    "websockets>=16.1",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.scripts]
+coder-service = "app.main:run"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.scripts]
+dev = "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+start = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
