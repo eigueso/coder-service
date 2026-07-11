@@ -5,6 +5,7 @@ import { login } from '../api/client'
 import { ApiError } from '../api/types'
 import { useAuth } from '../auth/useAuth'
 import { ArrowUpRight, Boxes } from 'lucide-react'
+import { motion } from 'motion/react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -45,7 +46,12 @@ export function LoginPage() {
 
   return (
     <main className="grid min-h-screen bg-background lg:grid-cols-[1.15fr_0.85fr]">
-      <section className="hidden bg-zinc-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+      <motion.section
+        initial={{ opacity: 0, x: -16 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className="hidden bg-zinc-950 p-12 text-white lg:flex lg:flex-col lg:justify-between"
+      >
         <div className="flex items-center gap-3 text-sm font-semibold">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-white text-zinc-950"><Boxes className="h-5 w-5" /></span>
           Coder Service
@@ -56,8 +62,13 @@ export function LoginPage() {
           <p className="mt-5 leading-7 text-zinc-400">Launch an environment that is ready for your code, editor, and terminal in minutes.</p>
         </div>
         <p className="text-sm text-zinc-500">Secure workspace access, powered by Coder.</p>
-      </section>
-      <section className="mx-auto flex w-full max-w-md flex-col justify-center px-6 py-12">
+      </motion.section>
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut', delay: 0.1 }}
+        className="mx-auto flex w-full max-w-md flex-col justify-center px-6 py-12"
+      >
         <div className="mb-8 lg:hidden"><span className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground"><Boxes className="h-5 w-5" /></span></div>
         <div className="mb-7">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">Welcome back</h1>
@@ -78,7 +89,7 @@ export function LoginPage() {
           </CardContent>
         </Card>
       <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">Your email is used to securely connect you to Coder. No password is required.</p>
-      </section>
+      </motion.section>
     </main>
   )
 }

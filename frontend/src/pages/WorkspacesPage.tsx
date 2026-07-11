@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   createVSCodeDesktopLink,
@@ -16,6 +16,7 @@ import { BuildLogsAccordion } from '../components/BuildLogsAccordion'
 import { StartupScriptAccordion } from '../components/StartupScriptAccordion'
 import { generateWorkspaceName } from '../lib/generateWorkspaceName'
 import { Boxes, ChevronDown, Code2, Cpu, ExternalLink, HardDrive, LogOut, MonitorCog, Plus, Sparkles, Terminal, Trash2 } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -233,6 +234,8 @@ export function WorkspacesPage() {
   const [workspacePendingDeletion, setWorkspacePendingDeletion] = useState<Workspace | null>(null)
   const [expandedWorkspaceId, setExpandedWorkspaceId] = useState<string | null>(null)
   const [autoExpandedWorkspaceId, setAutoExpandedWorkspaceId] = useState<string | null>(null)
+  const [workspacePendingFocusId, setWorkspacePendingFocusId] = useState<string | null>(null)
+  const workspaceRefs = useRef(new Map<string, HTMLLIElement>())
 
   const workspacesQuery = useQuery({
     queryKey: ['workspaces'],
@@ -253,6 +256,7 @@ export function WorkspacesPage() {
       setCreateOpen(false)
       setExpandedWorkspaceId(workspace.id)
       setAutoExpandedWorkspaceId(workspace.id)
+      setWorkspacePendingFocusId(workspace.id)
       await queryClient.invalidateQueries({ queryKey: ['workspaces'] })
     },
     onError: (error) => {
@@ -283,6 +287,12 @@ export function WorkspacesPage() {
     setAutoExpandedWorkspaceId(null)
   }, [autoExpandedWorkspaceId, workspaces])
 
+  useEffect(() => {
+    if (!workspacePendingFocusId || !workspaces.some(({ id }) => id === workspacePendingFocusId)) return
+    requestAnimationFrame(() => workspaceRefs.current.get(workspacePendingFocusId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    setWorkspacePendingFocusId(null)
+  }, [workspacePendingFocusId, workspaces])
+
   function onCreate(event: FormEvent) {
     event.preventDefault()
     setFormError(null)
@@ -303,8 +313,12 @@ export function WorkspacesPage() {
   }
 
   function toggleWorkspace(workspaceId: string) {
-    setExpandedWorkspaceId((expanded) => expanded === workspaceId ? null : workspaceId)
+    const willExpand = expandedWorkspaceId !== workspaceId
+    setExpandedWorkspaceId(willExpand ? workspaceId : null)
     setAutoExpandedWorkspaceId(null)
+    if (willExpand) {
+      requestAnimationFrame(() => workspaceRefs.current.get(workspaceId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
   }
 
   return (
@@ -334,7 +348,15 @@ export function WorkspacesPage() {
           </Button>
         </div>
 
-      {isCreateOpen ? <section className="mb-10 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <AnimatePresence initial={false}>
+      {isCreateOpen ? <motion.section
+        key="workspace-setup"
+        initial={{ opacity: 0, height: 0, y: -8 }}
+        animate={{ opacity: 1, height: 'auto', y: 0 }}
+        exit={{ opacity: 0, height: 0, y: -8 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="mb-10 overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+      >
         <div className="border-b border-border px-5 py-5 sm:px-6">
           <div className="flex items-start gap-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Plus className="h-5 w-5" /></span>
@@ -405,7 +427,8 @@ export function WorkspacesPage() {
             </Button>
           </div>
         </form>
-      </section> : null}
+      </motion.section> : null}
+      </AnimatePresence>
 
       <section className="mt-10">
         <div className="mb-4 flex items-baseline justify-between gap-3">
@@ -433,7 +456,8 @@ export function WorkspacesPage() {
           <div className="rounded-xl border border-dashed border-border bg-card px-5 py-12 text-center"><Boxes className="mx-auto h-8 w-8 text-muted-foreground/60" /><p className="mt-3 text-sm font-medium">No workspaces yet</p><p className="mt-1 text-sm text-muted-foreground">Create an environment and it will appear here when it’s ready.</p><Button type="button" variant="outline" className="mt-5" onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" /> Create workspace</Button></div>
         ) : null}
 
-        <ul className="mt-4 space-y-3">
+        <motion.ul layout className="mt-4 space-y-3">
+          <AnimatePresence initial={false}>
           {sorted.map((workspace) => {
             const deleting =
               deleteMutation.isPending && deleteMutation.variables === workspace.name
@@ -442,8 +466,17 @@ export function WorkspacesPage() {
             const expanded = expandedWorkspaceId === workspace.id
 
             return (
-              <li
+              <motion.li
                 key={workspace.id}
+                ref={(element) => {
+                  if (element) workspaceRefs.current.set(workspace.id, element)
+                  else workspaceRefs.current.delete(workspace.id)
+                }}
+                layout="position"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
                 className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5">
@@ -480,17 +513,28 @@ export function WorkspacesPage() {
                   </div>
                 </div>
 
+                <AnimatePresence initial={false}>
                 {expanded ? (
-                  <div className="border-t border-border px-5 py-5">
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="overflow-hidden border-t border-border"
+                  >
+                    <div className="px-5 py-5">
                     <WorkspaceAccessActions workspace={workspace} disabled={deleting || buildActive} />
                     <BuildLogsAccordion buildId={build.id} active={buildActive} autoOpen={build.transition !== 'delete'} />
                     <StartupScriptAccordion workspaceName={workspace.name} active={isWorkspaceStarting(workspace)} />
-                  </div>
+                    </div>
+                  </motion.div>
                 ) : null}
-              </li>
+                </AnimatePresence>
+              </motion.li>
             )
           })}
-        </ul>
+          </AnimatePresence>
+        </motion.ul>
 
         {deleteMutation.isError ? (
           <Alert variant="destructive" className="mt-4"><AlertDescription>{deleteMutation.error instanceof ApiError
