@@ -80,15 +80,16 @@ Create `.env` at the **repo root** (never commit this file):
 
 ```bash
 coder_url="http://localhost:3000"
-coder_email="you@example.com"
-coder_password="your-password"
+coder_dashboard_url="https://kvjg49neg3a86.pit-1.try.coder.app"
+coder_session_token="..."
 ```
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `coder_url` | yes | Coder API base URL (no trailing slash) |
-| `coder_email` | no | Only for local smoke tests |
-| `coder_password` | no | Only for local smoke tests |
+| `coder_dashboard_url` | no | Public dashboard URL; overrides Coder `buildinfo.dashboard_url` when set |
+| `coder_session_token` | yes (for SSO-style auth) | Owner API token used to mint per-user tokens |
+| `coder_email` / `coder_password` | no | Legacy; unused by email-only auth |
 
 Optional frontend env (`frontend/.env`, also gitignored):
 

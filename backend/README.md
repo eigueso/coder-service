@@ -39,8 +39,10 @@ Loaded from `../.env` (repo root) or the process environment:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CODER_URL` / `coder_url` | `http://localhost:3000` | Coder API base URL (no trailing slash) |
-| `CODER_EMAIL` / `coder_email` | | Optional; local smoke tests only |
-| `CODER_PASSWORD` / `coder_password` | | Optional; local smoke tests only |
+| `CODER_DASHBOARD_URL` / `coder_dashboard_url` | | Public dashboard / access URL. Overrides `buildinfo.dashboard_url` when set |
+| `CODER_SESSION_TOKEN` / `coder_session_token` | | Owner API token used by `POST /auth` to mint user tokens |
+| `CODER_EMAIL` / `coder_email` | | Optional; unused by email-only auth |
+| `CODER_PASSWORD` / `coder_password` | | Optional; unused by email-only auth |
 
 Do not commit `.env`.
 

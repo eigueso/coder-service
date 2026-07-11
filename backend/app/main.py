@@ -59,6 +59,14 @@ SessionToken = Annotated[str, Depends(require_session_token)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
 
 
+async def _dashboard_url(coder: CoderClient, settings: Settings) -> str:
+    """Use coder_dashboard_url when set; otherwise discover via buildinfo."""
+    if settings.configured_dashboard_url:
+        return settings.resolve_dashboard_url()
+    buildinfo = await coder.get_buildinfo()
+    return settings.resolve_dashboard_url(buildinfo.get("dashboard_url"))
+
+
 @app.get("/health")
 async def health(settings: AppSettings) -> dict[str, str]:
     return {"status": "ok", "coder_url": settings.coder_api_base}
@@ -95,8 +103,7 @@ async def auth(body: AuthRequest, settings: AppSettings) -> AuthResponse:
 async def me(settings: AppSettings, session_token: SessionToken) -> MeResponse:
     async with CoderClient(settings, session_token=session_token) as coder:
         user = await coder.get_me()
-        buildinfo = await coder.get_buildinfo()
-    dashboard = (buildinfo.get("dashboard_url") or settings.coder_api_base).rstrip("/")
+        dashboard = await _dashboard_url(coder, settings)
     return MeResponse(
         username=user["username"],
         email=user.get("email"),
@@ -168,9 +175,8 @@ async def get_workspace_access(
     async with CoderClient(settings, session_token=session_token) as coder:
         workspace = await coder.get_workspace(name)
         user = await coder.get_me()
-        buildinfo = await coder.get_buildinfo()
+        dashboard = await _dashboard_url(coder, settings)
 
-    dashboard = (buildinfo.get("dashboard_url") or settings.coder_api_base).rstrip("/")
     app_base = prefer_coder_app_base(
         api_base=settings.coder_api_base,
         dashboard_url=dashboard,
@@ -245,7 +251,7 @@ async def open_code_server(
     async with CoderClient(settings, session_token=session_token) as coder:
         workspace = await coder.get_workspace(name)
         user = await coder.get_me()
-        buildinfo = await coder.get_buildinfo()
+        dashboard = await _dashboard_url(coder, settings)
 
     if not is_started(workspace):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workspace is not started")
@@ -260,7 +266,6 @@ async def open_code_server(
     if not agent or not code_app:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="code-server app not found")
 
-    dashboard = (buildinfo.get("dashboard_url") or settings.coder_api_base).rstrip("/")
     app_base = prefer_coder_app_base(
         api_base=settings.coder_api_base,
         dashboard_url=dashboard,
@@ -292,7 +297,7 @@ async def vscode_desktop(
     async with CoderClient(settings, session_token=session_token) as coder:
         workspace = await coder.get_workspace(name)
         user = await coder.get_me()
-        buildinfo = await coder.get_buildinfo()
+        dashboard = await _dashboard_url(coder, settings)
         if not is_started(workspace):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workspace is not started")
         agent = pick_agent(workspace)
@@ -311,7 +316,6 @@ async def vscode_desktop(
             )
         api_key = await coder.create_api_key()
 
-    dashboard = (buildinfo.get("dashboard_url") or settings.coder_api_base).rstrip("/")
     folder = agent.get("expanded_directory") or agent.get("directory")
     uri = build_vscode_desktop_uri(
         coder_url=dashboard,

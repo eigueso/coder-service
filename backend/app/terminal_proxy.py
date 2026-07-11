@@ -107,8 +107,11 @@ async def proxy_workspace_terminal(
 
     try:
         async with CoderClient(settings, session_token=session_token) as coder:
-            buildinfo = await coder.get_buildinfo()
-            dashboard = (buildinfo.get("dashboard_url") or settings.coder_api_base).rstrip("/")
+            if settings.configured_dashboard_url:
+                dashboard = settings.resolve_dashboard_url()
+            else:
+                buildinfo = await coder.get_buildinfo()
+                dashboard = settings.resolve_dashboard_url(buildinfo.get("dashboard_url"))
             if not resolved_agent_id:
                 workspace = await coder.get_workspace(workspace_name)
                 if not is_started(workspace):

@@ -34,6 +34,13 @@ class Settings(BaseSettings):
         default="http://localhost:3000",
         description="Base URL of the Coder API (no trailing slash).",
     )
+    coder_dashboard_url: str | None = Field(
+        default=None,
+        description=(
+            "Public Coder dashboard / access URL (e.g. https://….try.coder.app). "
+            "When set, overrides the dashboard_url from GET /api/v2/buildinfo."
+        ),
+    )
     # Owner/admin API token used to mint per-user tokens (SSO simulation).
     coder_session_token: str | None = Field(
         default=None,
@@ -51,6 +58,20 @@ class Settings(BaseSettings):
     def owner_session_token(self) -> str | None:
         token = (self.coder_session_token or "").strip()
         return token or None
+
+    @property
+    def configured_dashboard_url(self) -> str | None:
+        url = (self.coder_dashboard_url or "").strip().rstrip("/")
+        return url or None
+
+    def resolve_dashboard_url(self, buildinfo_dashboard: str | None = None) -> str:
+        """Prefer explicit config, then Coder buildinfo, then the API base URL."""
+        if self.configured_dashboard_url:
+            return self.configured_dashboard_url
+        discovered = (buildinfo_dashboard or "").strip().rstrip("/")
+        if discovered:
+            return discovered
+        return self.coder_api_base
 
 
 @lru_cache
