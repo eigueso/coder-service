@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   createVSCodeDesktopLink,
@@ -15,7 +15,7 @@ import { useAuth } from '../auth/useAuth'
 import { BuildLogsAccordion } from '../components/BuildLogsAccordion'
 import { StartupScriptAccordion } from '../components/StartupScriptAccordion'
 import { generateWorkspaceName } from '../lib/generateWorkspaceName'
-import { Boxes, Code2, Cpu, ExternalLink, HardDrive, LogOut, MonitorCog, Plus, Sparkles, Terminal, Trash2 } from 'lucide-react'
+import { Boxes, ChevronDown, Code2, Cpu, ExternalLink, HardDrive, LogOut, MonitorCog, Plus, Sparkles, Terminal, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -83,6 +83,7 @@ type AccessButtonProps = {
   disabled?: boolean
   onClick?: () => void
   href?: string
+  compact?: boolean
   children: ReactNode
 }
 
@@ -109,21 +110,21 @@ function ResourceSelect({ label, value, options, unit, onChange }: ResourceSelec
   )
 }
 
-function AccessButton({ label, displayLabel, title, disabled, onClick, href, children }: AccessButtonProps) {
+function AccessButton({ label, displayLabel, title, disabled, onClick, href, compact, children }: AccessButtonProps) {
   const className =
-    'inline-flex h-10 items-center justify-start gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40'
+    `inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-background text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40 ${compact ? 'w-10 justify-center px-0' : 'justify-start px-3'}`
 
   if (href && !disabled) {
     return (
       <a href={href} target="_blank" rel="noreferrer" title={title} aria-label={label} className={className}>
-        {children}<span>{displayLabel}</span><ExternalLink className="h-3.5 w-3.5 opacity-60" />
+        {children}<span className={compact ? 'sr-only' : undefined}>{displayLabel}</span>{!compact ? <ExternalLink className="h-3.5 w-3.5 opacity-60" /> : null}
       </a>
     )
   }
 
   return (
     <button type="button" title={title} aria-label={label} disabled={disabled} onClick={onClick} className={className}>
-      {children}<span>{displayLabel}</span>
+      {children}<span className={compact ? 'sr-only' : undefined}>{displayLabel}</span>
     </button>
   )
 }
@@ -131,9 +132,11 @@ function AccessButton({ label, displayLabel, title, disabled, onClick, href, chi
 function WorkspaceAccessActions({
   workspace,
   disabled = false,
+  compact = false,
 }: {
   workspace: Workspace
   disabled?: boolean
+  compact?: boolean
 }) {
   const started = isWorkspaceStarted(workspace)
   const accessQuery = useQuery({
@@ -167,16 +170,15 @@ function WorkspaceAccessActions({
         ? 'Build in progress'
         : 'Not available'
 
-  return (
-    <div className="rounded-xl border border-border bg-muted/40 p-4" title={waitingForStartup ? 'Waiting for startup script…' : undefined}>
-      <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-medium">Open with</p><p className="text-xs text-muted-foreground">{connectionStatus}</p></div>
-      <div className="flex flex-wrap justify-start gap-2">
-        <AccessButton
+  const actions = (
+    <>
+      <AccessButton
         label={`Open terminal for ${workspace.name}`}
         displayLabel="Terminal"
         title={waitingForStartup ? 'Waiting for startup script…' : 'Terminal'}
         disabled={!ready || !access?.has_terminal}
         href={ready && access?.has_terminal ? openTerminalUrl(workspace.name) : undefined}
+        compact={compact}
       >
         <Terminal className="h-4 w-4" />
       </AccessButton>
@@ -187,6 +189,7 @@ function WorkspaceAccessActions({
         title={waitingForStartup ? 'Waiting for startup script…' : 'VS Code Browser'}
         disabled={!ready || !access?.has_vscode_browser}
         href={ready && access?.has_vscode_browser ? openCodeServerUrl(workspace.name) : undefined}
+        compact={compact}
       >
         <Code2 className="h-4 w-4" />
       </AccessButton>
@@ -197,10 +200,21 @@ function WorkspaceAccessActions({
         title={waitingForStartup ? 'Waiting for startup script…' : 'VS Code Desktop'}
         disabled={!ready || !access?.has_vscode_desktop || desktopMutation.isPending}
         onClick={() => desktopMutation.mutate()}
+        compact={compact}
       >
         <MonitorCog className="h-4 w-4" />
       </AccessButton>
-      </div>
+    </>
+  )
+
+  if (compact) {
+    return <div className="flex items-center gap-1" title={waitingForStartup ? 'Waiting for startup script…' : undefined}>{actions}</div>
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/40 p-4" title={waitingForStartup ? 'Waiting for startup script…' : undefined}>
+      <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-medium">Open with</p><p className="text-xs text-muted-foreground">{connectionStatus}</p></div>
+      <div className="flex flex-wrap justify-start gap-2">{actions}</div>
     </div>
   )
 }
@@ -217,6 +231,8 @@ export function WorkspacesPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [isCreateOpen, setCreateOpen] = useState(false)
   const [workspacePendingDeletion, setWorkspacePendingDeletion] = useState<Workspace | null>(null)
+  const [expandedWorkspaceId, setExpandedWorkspaceId] = useState<string | null>(null)
+  const [autoExpandedWorkspaceId, setAutoExpandedWorkspaceId] = useState<string | null>(null)
 
   const workspacesQuery = useQuery({
     queryKey: ['workspaces'],
@@ -230,11 +246,13 @@ export function WorkspacesPage() {
 
   const createMutation = useMutation({
     mutationFn: createWorkspace,
-    onSuccess: async () => {
+    onSuccess: async (workspace) => {
       setName('')
       setNameSuggestion(generateWorkspaceName())
       setFormError(null)
       setCreateOpen(false)
+      setExpandedWorkspaceId(workspace.id)
+      setAutoExpandedWorkspaceId(workspace.id)
       await queryClient.invalidateQueries({ queryKey: ['workspaces'] })
     },
     onError: (error) => {
@@ -256,6 +274,15 @@ export function WorkspacesPage() {
     [workspaces],
   )
 
+  useEffect(() => {
+    if (!autoExpandedWorkspaceId) return
+    const workspace = workspaces.find(({ id }) => id === autoExpandedWorkspaceId)
+    if (!workspace || isActiveBuild(workspace.latest_build.status) || !workspace.startup_ready) return
+
+    setExpandedWorkspaceId((expanded) => expanded === workspace.id ? null : expanded)
+    setAutoExpandedWorkspaceId(null)
+  }, [autoExpandedWorkspaceId, workspaces])
+
   function onCreate(event: FormEvent) {
     event.preventDefault()
     setFormError(null)
@@ -273,6 +300,11 @@ export function WorkspacesPage() {
   function onDelete() {
     if (!workspacePendingDeletion) return
     deleteMutation.mutate(workspacePendingDeletion.name)
+  }
+
+  function toggleWorkspace(workspaceId: string) {
+    setExpandedWorkspaceId((expanded) => expanded === workspaceId ? null : workspaceId)
+    setAutoExpandedWorkspaceId(null)
   }
 
   return (
@@ -407,32 +439,35 @@ export function WorkspacesPage() {
               deleteMutation.isPending && deleteMutation.variables === workspace.name
             const build = workspace.latest_build
             const buildActive = isActiveBuild(build.status)
+            const expanded = expandedWorkspaceId === workspace.id
 
             return (
               <li
                 key={workspace.id}
                 className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
               >
-                <div className="flex flex-wrap items-start justify-between gap-4 px-5 pt-5">
-                  <div className="flex min-w-0 items-start gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    aria-expanded={expanded}
+                    onClick={() => toggleWorkspace(workspace.id)}
+                  >
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><HardDrive className="h-4 w-4" /></span>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-base font-semibold">{workspace.name}</h3>
-                      <Badge className={`tracking-wide uppercase ${statusTone(build.status)}`}>
-                        {build.status}
-                      </Badge>
-                      {build.transition ? (
-                        <span className="font-mono text-[11px] text-ink-muted uppercase">
-                          {build.transition}
-                        </span>
-                      ) : null}
-                    </div>
-                      <p className="mt-1 font-mono text-xs text-muted-foreground">Build #{build.build_number ?? '—'}</p>
-                    </div>
-                  </div>
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-base font-semibold">{workspace.name}</span>
+                        <Badge className={`tracking-wide uppercase ${statusTone(build.status)}`}>{build.status}</Badge>
+                        {build.transition ? <span className="font-mono text-[11px] text-ink-muted uppercase">{build.transition}</span> : null}
+                      </span>
+                      <span className="mt-1 block font-mono text-xs text-muted-foreground">Build #{build.build_number ?? '—'}</span>
+                    </span>
+                    <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                  </button>
 
-                  <Button
+                  <div className="flex items-center gap-2">
+                    {!expanded && isWorkspaceStarted(workspace) ? <WorkspaceAccessActions workspace={workspace} disabled={deleting || buildActive} compact /> : null}
+                    <Button
                       type="button"
                       variant="destructive"
                       size="sm"
@@ -440,19 +475,18 @@ export function WorkspacesPage() {
                       disabled={deleting || buildActive}
                       className="bg-transparent shadow-none"
                     >
-                    <Trash2 className="h-3.5 w-3.5" /> {deleting ? 'Deleting…' : 'Delete'}
-                  </Button>
+                      <Trash2 className="h-3.5 w-3.5" /> {deleting ? 'Deleting…' : 'Delete'}
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="mx-5 mt-5">
-                  <WorkspaceAccessActions workspace={workspace} disabled={deleting || buildActive} />
-                </div>
-
-                <div className="px-5 pb-5"><BuildLogsAccordion buildId={build.id} active={buildActive} autoOpen={build.transition !== 'delete'} />
-                  <StartupScriptAccordion
-                    workspaceName={workspace.name}
-                    active={isWorkspaceStarting(workspace)}
-                  /></div>
+                {expanded ? (
+                  <div className="border-t border-border px-5 py-5">
+                    <WorkspaceAccessActions workspace={workspace} disabled={deleting || buildActive} />
+                    <BuildLogsAccordion buildId={build.id} active={buildActive} autoOpen={build.transition !== 'delete'} />
+                    <StartupScriptAccordion workspaceName={workspace.name} active={isWorkspaceStarting(workspace)} />
+                  </div>
+                ) : null}
               </li>
             )
           })}
