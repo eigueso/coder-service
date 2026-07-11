@@ -3,7 +3,13 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../api/client'
 import { ApiError } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
+import { ArrowUpRight, Boxes } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export function LoginPage() {
   const { isAuthenticated, setToken } = useAuth()
@@ -38,46 +44,41 @@ export function LoginPage() {
         : null
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
-      <div className="mb-10">
-        <p className="font-mono text-xs tracking-[0.2em] text-accent uppercase">coder-service</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink">Sign in</h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-          Enter your Coder user email. The backend mints a token for that user using the
-          configured owner session token (SSO simulation — no password).
-        </p>
-      </div>
-
-      <form
-        onSubmit={onSubmit}
-        className="rounded-2xl border border-line bg-panel/90 p-6 shadow-[0_20px_60px_-40px_rgba(15,28,26,0.45)] backdrop-blur"
-      >
-        <label className="block text-sm font-medium text-ink">
-          Email
-          <input
-            type="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-          />
-        </label>
-
-        {errorMessage ? (
-          <p className="mt-4 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
-
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="mt-6 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {mutation.isPending ? 'Signing in…' : 'Continue'}
-        </button>
-      </form>
+    <main className="grid min-h-screen bg-background lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="hidden bg-zinc-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="flex items-center gap-3 text-sm font-semibold">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-white text-zinc-950"><Boxes className="h-5 w-5" /></span>
+          Coder Service
+        </div>
+        <div className="max-w-md">
+          <p className="text-sm font-medium text-zinc-400">Cloud development environments</p>
+          <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight">A focused place to build, from any machine.</h1>
+          <p className="mt-5 leading-7 text-zinc-400">Launch an environment that is ready for your code, editor, and terminal in minutes.</p>
+        </div>
+        <p className="text-sm text-zinc-500">Secure workspace access, powered by Coder.</p>
+      </section>
+      <section className="mx-auto flex w-full max-w-md flex-col justify-center px-6 py-12">
+        <div className="mb-8 lg:hidden"><span className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground"><Boxes className="h-5 w-5" /></span></div>
+        <div className="mb-7">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Welcome back</h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">Sign in with your Coder email to access your workspaces.</p>
+        </div>
+        <Card className="shadow-sm">
+          <CardContent>
+            <form onSubmit={onSubmit}>
+              <Label className="block">
+                Email address
+                <Input type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" className="mt-2 h-10" />
+              </Label>
+              {errorMessage ? <Alert variant="destructive" className="mt-4"><AlertDescription>{errorMessage}</AlertDescription></Alert> : null}
+              <Button type="submit" disabled={mutation.isPending} className="mt-6 h-10 w-full">
+                {mutation.isPending ? 'Signing in…' : <>Continue <ArrowUpRight className="h-4 w-4" /></>}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">Your email is used to securely connect you to Coder. No password is required.</p>
+      </section>
     </main>
   )
 }

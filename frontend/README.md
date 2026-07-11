@@ -82,6 +82,7 @@ Optional `frontend/.env` (gitignored):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_DEFAULT_TEMPLATE_ID` | `93c85ebe-899b-4adb-8f68-d01ed67ca304` | Template ID for Launch |
+| `VITE_DEFAULT_TEMPLATE_NAME` | `Kubernetes workspace` | Template name displayed in the launch form |
 | `VITE_BACKEND_WS` | (auto) | WebSocket base for terminal, e.g. `ws://127.0.0.1:8000` |
 
 Confirm template IDs against your Coder deployment (`GET /api/v2/templates`).

@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm'
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { getStoredToken, getWorkspaceAccess } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/useAuth'
 import '@xterm/xterm/css/xterm.css'
 
 function terminalWsBase(): string {
@@ -44,9 +44,6 @@ function TerminalSession({
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
 
-    const onResize = () => {
-      // no-op until fitAddon exists; replaced below
-    }
     let resizeHandler: (() => void) | null = null
 
     const start = async () => {
@@ -89,18 +86,17 @@ function TerminalSession({
       localSocket.binaryType = 'arraybuffer'
       socket = localSocket
 
+      const sendResize = () => {
+        if (localSocket.readyState === WebSocket.OPEN) {
+          localSocket.send(encoder.encode(JSON.stringify({ height: localTerm.rows, width: localTerm.cols })))
+        }
+      }
+
       localSocket.onopen = () => {
         if (disposed) return
         setStatus('connected')
         setError(null)
-        localSocket.send(
-          encoder.encode(
-            JSON.stringify({
-              height: localTerm.rows,
-              width: localTerm.cols,
-            }),
-          ),
-        )
+        sendResize()
       }
 
       localSocket.onmessage = (event) => {
@@ -134,19 +130,9 @@ function TerminalSession({
 
       resizeHandler = () => {
         fitAddon.fit()
-        if (localSocket.readyState === WebSocket.OPEN) {
-          localSocket.send(
-            encoder.encode(
-              JSON.stringify({
-                height: localTerm.rows,
-                width: localTerm.cols,
-              }),
-            ),
-          )
-        }
+        sendResize()
       }
       window.addEventListener('resize', resizeHandler)
-      void onResize
     }
 
     void start()

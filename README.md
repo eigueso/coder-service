@@ -96,6 +96,7 @@ Optional frontend env (`frontend/.env`, also gitignored):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_DEFAULT_TEMPLATE_ID` | `93c85ebe-899b-4adb-8f68-d01ed67ca304` | Template used when launching from the UI |
+| `VITE_DEFAULT_TEMPLATE_NAME` | `Kubernetes workspace` | Template name displayed in the UI |
 | `VITE_BACKEND_WS` | (derived) | Override WebSocket base for the terminal (e.g. `ws://127.0.0.1:8000`) |
 
 ## Run locally

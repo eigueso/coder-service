@@ -11,17 +11,32 @@ import {
   openTerminalUrl,
 } from '../api/client'
 import { ApiError, type Workspace } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
-import { TerminalIcon, VSCodeBrowserIcon, VSCodeDesktopIcon } from '../components/AccessIcons'
+import { useAuth } from '../auth/useAuth'
 import { BuildLogsAccordion } from '../components/BuildLogsAccordion'
 import { StartupScriptAccordion } from '../components/StartupScriptAccordion'
 import { generateWorkspaceName } from '../lib/generateWorkspaceName'
+import { Boxes, Code2, Cpu, ExternalLink, HardDrive, LogOut, MonitorCog, Plus, Sparkles, Terminal, Trash2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 const DEFAULT_TEMPLATE_ID =
   import.meta.env.VITE_DEFAULT_TEMPLATE_ID ?? '93c85ebe-899b-4adb-8f68-d01ed67ca304'
+const DEFAULT_TEMPLATE_NAME =
+  import.meta.env.VITE_DEFAULT_TEMPLATE_NAME ?? 'Kubernetes workspace'
 
 const CPU_OPTIONS = ['2', '4', '6', '8']
 const MEMORY_OPTIONS = ['2', '4', '6', '8']
+const EMPTY_WORKSPACES: Workspace[] = []
 
 function statusTone(status: string): string {
   switch (status) {
@@ -47,6 +62,12 @@ function isWorkspaceStarted(workspace: Workspace): boolean {
   return status === 'succeeded' && transition === 'start'
 }
 
+function isWorkspaceStarting(workspace: Workspace): boolean {
+  const build = workspace.latest_build
+  return (build.transition === 'start' && isActiveBuild(build.status)) ||
+    (isWorkspaceStarted(workspace) && !workspace.startup_ready)
+}
+
 function needsWorkspacePolling(workspaces: Workspace[]): boolean {
   return workspaces.some((ws) => {
     if (isActiveBuild(ws.latest_build.status)) return true
@@ -55,45 +76,54 @@ function needsWorkspacePolling(workspaces: Workspace[]): boolean {
   })
 }
 
-function AccessButton({
-  label,
-  title,
-  disabled,
-  onClick,
-  href,
-  to,
-  children,
-}: {
+type AccessButtonProps = {
   label: string
+  displayLabel: string
   title: string
   disabled?: boolean
   onClick?: () => void
   href?: string
-  to?: string
   children: ReactNode
-}) {
-  const className =
-    'inline-flex h-10 w-10 items-center justify-center rounded-xl border border-accent/30 bg-accent-soft text-accent transition hover:border-accent hover:bg-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-40'
+}
 
-  if (to && !disabled) {
-    return (
-      <Link to={to} title={title} aria-label={label} className={className}>
-        {children}
-      </Link>
-    )
-  }
+type ResourceSelectProps = {
+  label: string
+  value: string
+  options: readonly string[]
+  unit: string
+  onChange: (value: string) => void
+}
+
+function ResourceSelect({ label, value, options, unit, onChange }: ResourceSelectProps) {
+  return (
+    <label className="text-sm font-medium sm:col-span-1">
+      {label}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+      >
+        {options.map((option) => <option key={option} value={option}>{option} {unit}</option>)}
+      </select>
+    </label>
+  )
+}
+
+function AccessButton({ label, displayLabel, title, disabled, onClick, href, children }: AccessButtonProps) {
+  const className =
+    'inline-flex h-10 items-center justify-start gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40'
 
   if (href && !disabled) {
     return (
       <a href={href} target="_blank" rel="noreferrer" title={title} aria-label={label} className={className}>
-        {children}
+        {children}<span>{displayLabel}</span><ExternalLink className="h-3.5 w-3.5 opacity-60" />
       </a>
     )
   }
 
   return (
     <button type="button" title={title} aria-label={label} disabled={disabled} onClick={onClick} className={className}>
-      {children}
+      {children}<span>{displayLabel}</span>
     </button>
   )
 }
@@ -129,35 +159,48 @@ function WorkspaceAccessActions({
   const access = accessQuery.data
   const ready = !disabled && Boolean(access?.startup_ready)
   const waitingForStartup = !disabled && started && !access?.startup_ready
+  const connectionStatus = waitingForStartup
+    ? 'Preparing tools…'
+    : ready
+      ? 'Ready to connect'
+      : disabled
+        ? 'Build in progress'
+        : 'Not available'
 
   return (
-    <div className="flex items-center gap-2" title={waitingForStartup ? 'Waiting for startup script…' : undefined}>
-      <AccessButton
+    <div className="rounded-xl border border-border bg-muted/40 p-4" title={waitingForStartup ? 'Waiting for startup script…' : undefined}>
+      <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-medium">Open with</p><p className="text-xs text-muted-foreground">{connectionStatus}</p></div>
+      <div className="flex flex-wrap justify-start gap-2">
+        <AccessButton
         label={`Open terminal for ${workspace.name}`}
+        displayLabel="Terminal"
         title={waitingForStartup ? 'Waiting for startup script…' : 'Terminal'}
         disabled={!ready || !access?.has_terminal}
         href={ready && access?.has_terminal ? openTerminalUrl(workspace.name) : undefined}
       >
-        <TerminalIcon className="h-5 w-5" />
+        <Terminal className="h-4 w-4" />
       </AccessButton>
 
       <AccessButton
         label={`Open VS Code Browser for ${workspace.name}`}
+        displayLabel="VS Code web"
         title={waitingForStartup ? 'Waiting for startup script…' : 'VS Code Browser'}
         disabled={!ready || !access?.has_vscode_browser}
         href={ready && access?.has_vscode_browser ? openCodeServerUrl(workspace.name) : undefined}
       >
-        <VSCodeBrowserIcon className="h-5 w-5" />
+        <Code2 className="h-4 w-4" />
       </AccessButton>
 
       <AccessButton
         label={`Open VS Code Desktop for ${workspace.name}`}
+        displayLabel={desktopMutation.isPending ? 'Opening…' : 'VS Code desktop'}
         title={waitingForStartup ? 'Waiting for startup script…' : 'VS Code Desktop'}
         disabled={!ready || !access?.has_vscode_desktop || desktopMutation.isPending}
         onClick={() => desktopMutation.mutate()}
       >
-        <VSCodeDesktopIcon className="h-5 w-5" />
+        <MonitorCog className="h-4 w-4" />
       </AccessButton>
+      </div>
     </div>
   )
 }
@@ -172,6 +215,8 @@ export function WorkspacesPage() {
   const [memory, setMemory] = useState('2')
   const [disk, setDisk] = useState('10')
   const [formError, setFormError] = useState<string | null>(null)
+  const [isCreateOpen, setCreateOpen] = useState(false)
+  const [workspacePendingDeletion, setWorkspacePendingDeletion] = useState<Workspace | null>(null)
 
   const workspacesQuery = useQuery({
     queryKey: ['workspaces'],
@@ -189,6 +234,7 @@ export function WorkspacesPage() {
       setName('')
       setNameSuggestion(generateWorkspaceName())
       setFormError(null)
+      setCreateOpen(false)
       await queryClient.invalidateQueries({ queryKey: ['workspaces'] })
     },
     onError: (error) => {
@@ -199,11 +245,12 @@ export function WorkspacesPage() {
   const deleteMutation = useMutation({
     mutationFn: (workspaceName: string) => deleteWorkspace(workspaceName),
     onSuccess: async () => {
+      setWorkspacePendingDeletion(null)
       await queryClient.invalidateQueries({ queryKey: ['workspaces'] })
     },
   })
 
-  const workspaces = workspacesQuery.data?.workspaces ?? []
+  const workspaces = workspacesQuery.data?.workspaces ?? EMPTY_WORKSPACES
   const sorted = useMemo(
     () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name)),
     [workspaces],
@@ -223,53 +270,60 @@ export function WorkspacesPage() {
     })
   }
 
-  function onDelete(workspace: Workspace) {
-    const confirmed = window.confirm(
-      `Delete workspace "${workspace.name}"? This starts a delete build in Coder.`,
-    )
-    if (!confirmed) return
-    deleteMutation.mutate(workspace.name)
+  function onDelete() {
+    if (!workspacePendingDeletion) return
+    deleteMutation.mutate(workspacePendingDeletion.name)
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
-        <div>
-          <p className="font-mono text-xs tracking-[0.2em] text-accent uppercase">coder-service</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Workspaces</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Launch, monitor, and delete workspaces backed by your Coder deployment.
-          </p>
+    <main className="min-h-screen bg-background">
+      <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+          <Link to="/workspaces" className="flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm"><Boxes className="h-5 w-5" /></span>
+            <span className="text-sm font-semibold tracking-tight">Coder Service</span>
+          </Link>
+          <Button type="button" variant="ghost" onClick={logout} className="text-muted-foreground">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sign out</span>
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={logout}
-          className="rounded-xl border border-line bg-panel px-4 py-2 text-sm font-medium text-ink-muted transition hover:border-ink/20 hover:text-ink"
-        >
-          Sign out
-        </button>
       </header>
 
-      <section className="mt-8 rounded-2xl border border-line bg-panel/90 p-6 shadow-[0_20px_60px_-45px_rgba(15,28,26,0.5)]">
-        <h2 className="text-lg font-semibold">Launch workspace</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          Uses the Kubernetes template with cpu / memory / disk rich parameters.
-        </p>
+      <div className="mx-auto max-w-6xl px-5 py-9 sm:px-8 sm:py-12">
+        <div className="mb-9 flex flex-wrap items-end justify-between gap-5">
+          <div className="max-w-2xl">
+            <p className="mb-3 flex items-center gap-2 text-sm font-medium text-primary"><Sparkles className="h-4 w-4" /> Development environments</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Your workspaces</h1>
+            <p className="mt-3 text-base leading-7 text-muted-foreground">Open what you need now, or create a fresh environment when you’re ready to start something new.</p>
+          </div>
+          <Button type="button" size="lg" onClick={() => setCreateOpen((open) => !open)} aria-expanded={isCreateOpen}>
+            <Plus className="h-4 w-4" /> {isCreateOpen ? 'Close setup' : 'New workspace'}
+          </Button>
+        </div>
 
-        <form onSubmit={onCreate} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="sm:col-span-2 lg:col-span-2 text-sm font-medium">
+      {isCreateOpen ? <section className="mb-10 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="border-b border-border px-5 py-5 sm:px-6">
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Plus className="h-5 w-5" /></span>
+            <div><h2 className="font-semibold text-card-foreground">New workspace</h2><p className="mt-0.5 text-sm text-muted-foreground">Choose resources for your Kubernetes workspace.</p></div>
+          </div>
+        </div>
+
+        <form onSubmit={onCreate} className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-6">
+          <label className="text-sm font-medium sm:col-span-2 lg:col-span-3">
             Name
-            <input
+            <Input
               required
               pattern="^[a-zA-Z0-9]([a-zA-Z0-9-]{0,31})$"
               title="Letters, numbers, hyphens. Max 32 chars."
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="my-workspace"
-              className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+              className="mt-2 h-10 w-full"
             />
             {!name.trim() ? (
-              <p className="mt-2 text-xs font-normal text-ink-muted">
+              <p className="mt-2 text-xs font-normal text-muted-foreground">
                 Need a suggestion?{' '}
                 <button
                   type="button"
@@ -277,7 +331,7 @@ export function WorkspacesPage() {
                     setName(nameSuggestion)
                     setNameSuggestion(generateWorkspaceName())
                   }}
-                  className="font-mono text-accent underline-offset-2 hover:underline"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
                 >
                   {nameSuggestion}
                 </button>
@@ -285,87 +339,58 @@ export function WorkspacesPage() {
             ) : null}
           </label>
 
-          <label className="text-sm font-medium">
-            CPU
-            <select
-              value={cpu}
-              onChange={(e) => setCpu(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-            >
-              {CPU_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {value} cores
-                </option>
-              ))}
-            </select>
-          </label>
+          <ResourceSelect label="CPU" value={cpu} options={CPU_OPTIONS} unit="cores" onChange={setCpu} />
+          <ResourceSelect label="Memory" value={memory} options={MEMORY_OPTIONS} unit="GB" onChange={setMemory} />
 
-          <label className="text-sm font-medium">
-            Memory
-            <select
-              value={memory}
-              onChange={(e) => setMemory(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-            >
-              {MEMORY_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {value} GB
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-sm font-medium">
+          <label className="text-sm font-medium sm:col-span-1">
             Disk (GB)
-            <input
+            <Input
               type="number"
               min={1}
               max={99999}
               required
               value={disk}
               onChange={(e) => setDisk(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+              className="mt-2 h-10 w-full"
             />
           </label>
 
-          <div className="flex items-end sm:col-span-2 lg:col-span-3">
+          <div className="flex items-end sm:col-span-2 lg:col-span-4">
             {formError ? (
-              <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
-                {formError}
-              </p>
+              <Alert variant="destructive"><AlertDescription>{formError}</AlertDescription></Alert>
             ) : (
-              <p className="font-mono text-xs text-ink-muted">template {DEFAULT_TEMPLATE_ID}</p>
+              <p className="flex items-center gap-2 text-xs text-muted-foreground"><Cpu className="h-3.5 w-3.5" /> Template: <span className="font-medium text-foreground">{DEFAULT_TEMPLATE_NAME}</span></p>
             )}
           </div>
 
-          <div className="flex items-end justify-end">
-            <button
+          <div className="flex items-end justify-end sm:col-span-2 lg:col-span-2">
+            <Button
               type="submit"
               disabled={createMutation.isPending}
-              className="w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              className="h-10 w-full sm:w-auto"
             >
-              {createMutation.isPending ? 'Launching…' : 'Launch'}
-            </button>
+              <Plus className="h-4 w-4" /> {createMutation.isPending ? 'Launching…' : 'Create workspace'}
+            </Button>
           </div>
         </form>
-      </section>
+      </section> : null}
 
-      <section className="mt-8">
+      <section className="mt-10">
         <div className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="text-lg font-semibold">Your workspaces</h2>
-          <p className="font-mono text-xs text-ink-muted">
+          <div><h2 className="text-lg font-semibold">Active workspaces</h2><p className="mt-1 text-sm text-muted-foreground">Your running environments stay front and center.</p></div>
+          <p className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
             {workspacesQuery.isLoading ? 'loading…' : `${sorted.length} total`}
           </p>
         </div>
 
         {workspacesQuery.isLoading ? (
-          <p className="rounded-2xl border border-dashed border-line bg-panel/60 px-5 py-10 text-sm text-ink-muted">
+          <p className="rounded-xl border border-dashed border-border bg-card px-5 py-10 text-sm text-muted-foreground">
             Loading workspaces…
           </p>
         ) : null}
 
         {workspacesQuery.isError ? (
-          <p className="rounded-2xl bg-danger-soft px-5 py-4 text-sm text-danger" role="alert">
+          <p className="rounded-lg bg-destructive/10 px-5 py-4 text-sm text-destructive" role="alert">
             {workspacesQuery.error instanceof ApiError
               ? workspacesQuery.error.message
               : 'Failed to load workspaces'}
@@ -373,12 +398,10 @@ export function WorkspacesPage() {
         ) : null}
 
         {!workspacesQuery.isLoading && !workspacesQuery.isError && sorted.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-line bg-panel/60 px-5 py-10 text-sm text-ink-muted">
-            No workspaces yet. Launch one above to get started.
-          </p>
+          <div className="rounded-xl border border-dashed border-border bg-card px-5 py-12 text-center"><Boxes className="mx-auto h-8 w-8 text-muted-foreground/60" /><p className="mt-3 text-sm font-medium">No workspaces yet</p><p className="mt-1 text-sm text-muted-foreground">Create an environment and it will appear here when it’s ready.</p><Button type="button" variant="outline" className="mt-5" onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" /> Create workspace</Button></div>
         ) : null}
 
-        <ul className="space-y-3">
+        <ul className="mt-4 space-y-3">
           {sorted.map((workspace) => {
             const deleting =
               deleteMutation.isPending && deleteMutation.variables === workspace.name
@@ -388,65 +411,79 @@ export function WorkspacesPage() {
             return (
               <li
                 key={workspace.id}
-                className="rounded-2xl border border-line bg-panel px-5 py-4"
+                className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
               >
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate text-base font-semibold">{workspace.name}</h3>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] tracking-wide uppercase ${statusTone(build.status)}`}
-                      >
+                <div className="flex flex-wrap items-start justify-between gap-4 px-5 pt-5">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><HardDrive className="h-4 w-4" /></span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-base font-semibold">{workspace.name}</h3>
+                      <Badge className={`tracking-wide uppercase ${statusTone(build.status)}`}>
                         {build.status}
-                      </span>
+                      </Badge>
                       {build.transition ? (
                         <span className="font-mono text-[11px] text-ink-muted uppercase">
                           {build.transition}
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-1 font-mono text-xs text-ink-muted">
-                      build #{build.build_number ?? '—'} · {build.id}
-                    </p>
+                      <p className="mt-1 font-mono text-xs text-muted-foreground">Build #{build.build_number ?? '—'}</p>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <WorkspaceAccessActions
-                      workspace={workspace}
-                      disabled={deleting || buildActive}
-                    />
-                    <button
+                  <Button
                       type="button"
-                      onClick={() => onDelete(workspace)}
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setWorkspacePendingDeletion(workspace)}
                       disabled={deleting || buildActive}
-                      className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm font-medium text-danger transition hover:border-danger disabled:cursor-not-allowed disabled:opacity-50"
+                      className="bg-transparent shadow-none"
                     >
-                      {deleting ? 'Deleting…' : 'Delete'}
-                    </button>
-                  </div>
+                    <Trash2 className="h-3.5 w-3.5" /> {deleting ? 'Deleting…' : 'Delete'}
+                  </Button>
                 </div>
 
-                <BuildLogsAccordion buildId={build.id} active={buildActive} />
-                <StartupScriptAccordion
-                  workspaceName={workspace.name}
-                  active={
-                    buildActive ||
-                    (isWorkspaceStarted(workspace) && !workspace.startup_ready)
-                  }
-                />
+                <div className="mx-5 mt-5">
+                  <WorkspaceAccessActions workspace={workspace} disabled={deleting || buildActive} />
+                </div>
+
+                <div className="px-5 pb-5"><BuildLogsAccordion buildId={build.id} active={buildActive} autoOpen={build.transition !== 'delete'} />
+                  <StartupScriptAccordion
+                    workspaceName={workspace.name}
+                    active={isWorkspaceStarting(workspace)}
+                  /></div>
               </li>
             )
           })}
         </ul>
 
         {deleteMutation.isError ? (
-          <p className="mt-4 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
-            {deleteMutation.error instanceof ApiError
+          <Alert variant="destructive" className="mt-4"><AlertDescription>{deleteMutation.error instanceof ApiError
               ? deleteMutation.error.message
-              : 'Failed to delete workspace'}
-          </p>
+              : 'Failed to delete workspace'}</AlertDescription></Alert>
         ) : null}
       </section>
+      </div>
+      <Dialog
+        open={workspacePendingDeletion !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) setWorkspacePendingDeletion(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete workspace?</DialogTitle>
+            <DialogDescription>
+              This starts a delete build for <span className="font-medium text-foreground">{workspacePendingDeletion?.name}</span>. Its files and environment will be removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={deleteMutation.isPending} onClick={() => setWorkspacePendingDeletion(null)}>Cancel</Button>
+            <Button type="button" variant="destructive" disabled={deleteMutation.isPending} onClick={onDelete}>{deleteMutation.isPending ? 'Deleting…' : 'Delete workspace'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

@@ -14,6 +14,15 @@ import {
 
 const TOKEN_KEY = 'coder_session_token'
 
+function workspacePath(name: string): string {
+  return `/workspaces/${encodeURIComponent(name)}`
+}
+
+function withQuery(path: string, params: URLSearchParams): string {
+  const query = params.toString()
+  return query ? `${path}?${query}` : path
+}
+
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -95,25 +104,25 @@ export function getMe(): Promise<MeResponse> {
 }
 
 export function getWorkspaceAccess(name: string): Promise<WorkspaceAccess> {
-  return apiFetch<WorkspaceAccess>(`/workspaces/${encodeURIComponent(name)}/access`)
+  return apiFetch<WorkspaceAccess>(`${workspacePath(name)}/access`)
 }
 
 export function openCodeServerUrl(name: string): string {
   const token = getStoredToken()
   const params = new URLSearchParams()
   if (token) params.set('token', token)
-  return `/api/workspaces/${encodeURIComponent(name)}/open/code-server?${params}`
+  return `/api${withQuery(`${workspacePath(name)}/open/code-server`, params)}`
 }
 
 export function openTerminalUrl(name: string): string {
   const token = getStoredToken()
   const params = new URLSearchParams()
   if (token) params.set('token', token)
-  return `/workspaces/${encodeURIComponent(name)}/terminal?${params}`
+  return withQuery(`${workspacePath(name)}/terminal`, params)
 }
 
 export function createVSCodeDesktopLink(name: string): Promise<VSCodeDesktopResponse> {
-  return apiFetch<VSCodeDesktopResponse>(`/workspaces/${encodeURIComponent(name)}/vscode-desktop`, {
+  return apiFetch<VSCodeDesktopResponse>(`${workspacePath(name)}/vscode-desktop`, {
     method: 'POST',
   })
 }
@@ -130,8 +139,9 @@ export function createWorkspace(input: CreateWorkspaceInput): Promise<Workspace>
 }
 
 export function deleteWorkspace(name: string, orphan = false): Promise<WorkspaceBuild> {
-  const query = orphan ? '?orphan=true' : ''
-  return apiFetch<WorkspaceBuild>(`/workspaces/${encodeURIComponent(name)}${query}`, {
+  const params = new URLSearchParams()
+  if (orphan) params.set('orphan', 'true')
+  return apiFetch<WorkspaceBuild>(withQuery(workspacePath(name), params), {
     method: 'DELETE',
   })
 }
@@ -144,10 +154,7 @@ export function getBuildLogs(
   if (options.after !== undefined) {
     params.set('after', String(options.after))
   }
-  const query = params.toString()
-  return apiFetch<ProvisionerJobLog[]>(
-    `/workspacebuilds/${encodeURIComponent(buildId)}/logs${query ? `?${query}` : ''}`,
-  )
+  return apiFetch<ProvisionerJobLog[]>(withQuery(`/workspacebuilds/${encodeURIComponent(buildId)}/logs`, params))
 }
 
 export function getStartupLogs(
@@ -158,8 +165,5 @@ export function getStartupLogs(
   if (options.after !== undefined) {
     params.set('after', String(options.after))
   }
-  const query = params.toString()
-  return apiFetch<WorkspaceAgentLog[]>(
-    `/workspaces/${encodeURIComponent(workspaceName)}/startup-logs${query ? `?${query}` : ''}`,
-  )
+  return apiFetch<WorkspaceAgentLog[]>(withQuery(`${workspacePath(workspaceName)}/startup-logs`, params))
 }
