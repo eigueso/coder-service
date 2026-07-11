@@ -320,3 +320,51 @@ class CoderClient:
                 detail="Coder create API key succeeded but no key was returned",
             )
         return key
+
+    async def find_user_by_email(self, email: str) -> dict[str, Any]:
+        """Resolve a Coder user by email via ``GET /api/v2/users?q=...``."""
+        payload = await self._request(
+            "GET",
+            "/api/v2/users",
+            authenticated=True,
+            params={"q": email},
+        )
+        users = payload.get("users") if isinstance(payload, dict) else None
+        if not isinstance(users, list):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Unexpected response listing Coder users",
+            )
+        needle = email.strip().lower()
+        for user in users:
+            if str(user.get("email") or "").lower() == needle:
+                return user
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No Coder user found for email {email}",
+        )
+
+    async def create_token_for_user(
+        self,
+        user_id: str,
+        *,
+        token_name: str,
+        lifetime_ns: int = 86_400_000_000_000,
+    ) -> str:
+        """Mint a named API token for ``user_id`` (Owner-only for other users)."""
+        payload = await self._request(
+            "POST",
+            f"/api/v2/users/{user_id}/keys/tokens",
+            authenticated=True,
+            json={
+                "token_name": token_name,
+                "lifetime": lifetime_ns,
+            },
+        )
+        key = payload.get("key") if isinstance(payload, dict) else None
+        if not key:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Coder create token succeeded but no key was returned",
+            )
+        return key

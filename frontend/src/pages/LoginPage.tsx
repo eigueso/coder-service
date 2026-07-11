@@ -12,10 +12,9 @@ export function LoginPage() {
   const from = (location.state as { from?: string } | null)?.from ?? '/workspaces'
 
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => login(email.trim(), password),
+    mutationFn: () => login(email.trim()),
     onSuccess: (data) => {
       setToken(data.session_token)
       navigate(from, { replace: true })
@@ -44,7 +43,8 @@ export function LoginPage() {
         <p className="font-mono text-xs tracking-[0.2em] text-accent uppercase">coder-service</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink">Sign in</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-          Authenticate against your Coder deployment to manage workspaces.
+          Enter your Coder user email. The backend mints a token for that user using the
+          configured owner session token (SSO simulation — no password).
         </p>
       </div>
 
@@ -64,18 +64,6 @@ export function LoginPage() {
           />
         </label>
 
-        <label className="mt-4 block text-sm font-medium text-ink">
-          Password
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-line bg-surface px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-          />
-        </label>
-
         {errorMessage ? (
           <p className="mt-4 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
             {errorMessage}
@@ -87,7 +75,7 @@ export function LoginPage() {
           disabled={mutation.isPending}
           className="mt-6 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {mutation.isPending ? 'Signing in…' : 'Sign in'}
+          {mutation.isPending ? 'Signing in…' : 'Continue'}
         </button>
       </form>
     </main>

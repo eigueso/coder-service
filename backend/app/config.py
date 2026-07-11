@@ -34,13 +34,23 @@ class Settings(BaseSettings):
         default="http://localhost:3000",
         description="Base URL of the Coder API (no trailing slash).",
     )
-    # Present in ../.env for local validation; not required at runtime.
+    # Owner/admin API token used to mint per-user tokens (SSO simulation).
+    coder_session_token: str | None = Field(
+        default=None,
+        description="Coder Owner session/API token used by POST /auth to mint user tokens.",
+    )
+    # Legacy login fields — unused by the email-only SSO simulation auth path.
     coder_email: str | None = None
     coder_password: str | None = None
 
     @property
     def coder_api_base(self) -> str:
         return self.coder_url.rstrip("/")
+
+    @property
+    def owner_session_token(self) -> str | None:
+        token = (self.coder_session_token or "").strip()
+        return token or None
 
 
 @lru_cache

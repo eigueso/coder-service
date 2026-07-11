@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, WebSocket, status
@@ -68,11 +68,26 @@ async def health(settings: AppSettings) -> dict[str, str]:
     "/auth",
     response_model=AuthResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Authenticate against Coder",
+    summary="Mint a Coder token for a user email (SSO simulation)",
+    description=(
+        "Accepts only an email. Uses the Owner API token from CODER_SESSION_TOKEN "
+        "to create an API token for that Coder user. Experimental stand-in for SSO."
+    ),
 )
 async def auth(body: AuthRequest, settings: AppSettings) -> AuthResponse:
-    async with CoderClient(settings) as coder:
-        session_token = await coder.login(body.email, body.password)
+    owner_token = settings.owner_session_token
+    if not owner_token:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Owner token missing: set coder_session_token in .env",
+        )
+
+    async with CoderClient(settings, session_token=owner_token) as coder:
+        user = await coder.find_user_by_email(str(body.email))
+        user_id = str(user["id"])
+        token_name = f"coder-service-{uuid4().hex[:12]}"
+        session_token = await coder.create_token_for_user(user_id, token_name=token_name)
+
     return AuthResponse(session_token=session_token)
 
 

@@ -8,8 +8,13 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class AuthRequest(BaseModel):
-    email: EmailStr = Field(..., description="Coder account email")
-    password: str = Field(..., min_length=1, description="Coder account password")
+    email: EmailStr = Field(
+        ...,
+        description=(
+            "Target Coder user email. The backend authenticates as the configured "
+            "owner (.env) and mints an API token for this user (SSO simulation)."
+        ),
+    )
 
 
 class AuthResponse(BaseModel):
