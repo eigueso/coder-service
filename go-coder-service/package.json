@@ -1,0 +1,12 @@
+{
+  "name": "go-coder-service-css",
+  "private": true,
+  "description": "Build-time only: compiles Tailwind CSS for the Go server. Not needed at runtime.",
+  "scripts": {
+    "build:css": "tailwindcss -i tailwind.css -o internal/web/static/css/app.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

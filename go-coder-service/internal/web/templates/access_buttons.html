@@ -1,0 +1,41 @@
+{{define "access_button_class"}}inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-background text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40{{end}}
+
+{{define "access_buttons_compact"}}
+{{if and .Ready .HasTerminal}}
+<a href="{{.TerminalHref}}" target="_blank" rel="noopener noreferrer" title="Terminal" aria-label="Open terminal for {{.Name}}"
+   class="{{template "access_button_class"}} w-10 justify-center px-0">{{template "icon-terminal" "h-4 w-4"}}</a>
+{{else}}
+<button type="button" disabled title="{{if .WaitingForStartup}}Waiting for startup script…{{else}}Terminal{{end}}" aria-label="Open terminal for {{.Name}}"
+        class="{{template "access_button_class"}} w-10 justify-center px-0">{{template "icon-terminal" "h-4 w-4"}}</button>
+{{end}}
+{{if and .Ready .HasVSCodeBrowser}}
+<a href="{{.VSCodeWebHref}}" target="_blank" rel="noopener noreferrer" title="VS Code Browser" aria-label="Open VS Code Browser for {{.Name}}"
+   class="{{template "access_button_class"}} w-10 justify-center px-0">{{template "icon-code-2" "h-4 w-4"}}</a>
+{{else}}
+<button type="button" disabled title="{{if .WaitingForStartup}}Waiting for startup script…{{else}}VS Code Browser{{end}}" aria-label="Open VS Code Browser for {{.Name}}"
+        class="{{template "access_button_class"}} w-10 justify-center px-0">{{template "icon-code-2" "h-4 w-4"}}</button>
+{{end}}
+<button type="button" title="{{if .WaitingForStartup}}Waiting for startup script…{{else}}VS Code Desktop{{end}}" aria-label="Open VS Code Desktop for {{.Name}}"
+        {{if and .Ready .HasVSCodeDesktop}}hx-post="/workspaces/{{.Name}}/vscode-desktop-open" hx-swap="none" hx-disabled-elt="this"{{else}}disabled{{end}}
+        class="{{template "access_button_class"}} w-10 justify-center px-0">{{template "icon-monitor-cog" "h-4 w-4"}}</button>
+{{end}}
+
+{{define "access_buttons_full"}}
+{{if and .Ready .HasTerminal}}
+<a href="{{.TerminalHref}}" target="_blank" rel="noopener noreferrer" title="Terminal" aria-label="Open terminal for {{.Name}}"
+   class="{{template "access_button_class"}} justify-start px-3">{{template "icon-terminal" "h-4 w-4"}}<span>Terminal</span>{{template "icon-external-link" "h-3.5 w-3.5 opacity-60"}}</a>
+{{else}}
+<button type="button" disabled title="{{if .WaitingForStartup}}Waiting for startup script…{{else}}Terminal{{end}}" aria-label="Open terminal for {{.Name}}"
+        class="{{template "access_button_class"}} justify-start px-3">{{template "icon-terminal" "h-4 w-4"}}<span>Terminal</span></button>
+{{end}}
+{{if and .Ready .HasVSCodeBrowser}}
+<a href="{{.VSCodeWebHref}}" target="_blank" rel="noopener noreferrer" title="VS Code Browser" aria-label="Open VS Code Browser for {{.Name}}"
+   class="{{template "access_button_class"}} justify-start px-3">{{template "icon-code-2" "h-4 w-4"}}<span>VS Code web</span>{{template "icon-external-link" "h-3.5 w-3.5 opacity-60"}}</a>
+{{else}}
+<button type="button" disabled title="{{if .WaitingForStartup}}Waiting for startup script…{{else}}VS Code Browser{{end}}" aria-label="Open VS Code Browser for {{.Name}}"
+        class="{{template "access_button_class"}} justify-start px-3">{{template "icon-code-2" "h-4 w-4"}}<span>VS Code web</span></button>
+{{end}}
+<button type="button" title="{{if .WaitingForStartup}}Waiting for startup script…{{else}}VS Code Desktop{{end}}" aria-label="Open VS Code Desktop for {{.Name}}"
+        {{if and .Ready .HasVSCodeDesktop}}hx-post="/workspaces/{{.Name}}/vscode-desktop-open" hx-target="#desktop-error-{{.ID}}" hx-swap="innerHTML" hx-disabled-elt="this"{{else}}disabled{{end}}
+        class="{{template "access_button_class"}} justify-start px-3">{{template "icon-monitor-cog" "h-4 w-4"}}<span>VS Code desktop</span></button>
+{{end}}

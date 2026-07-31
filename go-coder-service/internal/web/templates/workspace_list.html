@@ -1,0 +1,118 @@
+<div id="workspace-list-region"
+     {{if .PollNeeded}}hx-get="/fragments/workspaces?expanded={{.Expanded}}&logs={{.LogsParam}}" hx-trigger="every 5s" hx-swap="outerHTML"{{end}}>
+
+  <div class="mb-4 flex justify-end">
+    <p class="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{{.Count}} total</p>
+  </div>
+
+  {{if .Error}}
+  <p class="rounded-lg bg-destructive/10 px-5 py-4 text-sm text-destructive" role="alert">{{.Error}}</p>
+  {{else if not .Workspaces}}
+  <div class="rounded-xl border border-dashed border-border bg-card px-5 py-12 text-center">
+    <span class="mx-auto inline-block text-muted-foreground/60">{{template "icon-boxes" "h-8 w-8"}}</span>
+    <p class="mt-3 text-sm font-medium">No workspaces yet</p>
+    <p class="mt-1 text-sm text-muted-foreground">Create an environment and it will appear here when it’s ready.</p>
+  </div>
+  {{end}}
+
+  <ul class="mt-4 space-y-3">
+    {{range .Workspaces}}
+    <li id="workspace-{{.ID}}" class="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
+      <div class="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5">
+        <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left"
+                aria-expanded="{{if .Expanded}}true{{else}}false{{end}}"
+                hx-get="/fragments/workspaces?expanded={{if .Expanded}}{{else}}{{.ID}}{{end}}&logs={{$.LogsParam}}"
+                hx-target="#workspace-list-region" hx-swap="outerHTML">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">{{template "icon-hard-drive" "h-4 w-4"}}</span>
+          <span class="min-w-0">
+            <span class="flex flex-wrap items-center gap-2">
+              <span class="truncate text-base font-semibold">{{.Name}}</span>
+              <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium tracking-wide uppercase {{.StatusTone}}">{{.LatestBuild.Status}}</span>
+              {{if .Transition}}<span class="font-mono text-[11px] text-ink-muted uppercase">{{.Transition}}</span>{{end}}
+            </span>
+            <span class="mt-1 block font-mono text-xs text-muted-foreground">Build #{{.BuildNumberLabel}}</span>
+          </span>
+          <span class="ml-auto shrink-0 text-muted-foreground transition-transform {{if .Expanded}}rotate-180{{end}}">{{template "icon-chevron-down" "h-4 w-4"}}</span>
+        </button>
+
+        <div class="flex items-center gap-2">
+          {{if and (not .Expanded) .Started}}
+          <div class="flex items-center gap-1" {{if .WaitingForStartup}}title="Waiting for startup script…"{{end}}>
+            {{template "access_buttons_compact" .}}
+          </div>
+          {{end}}
+          <button type="button"
+                  hx-post="/workspaces/{{.Name}}/delete?expanded={{$.Expanded}}&logs={{$.LogsParam}}"
+                  hx-confirm="Delete workspace? This starts a delete build for {{.Name}}. Its files and environment will be removed."
+                  hx-target="#workspace-list-region" hx-swap="outerHTML" hx-disabled-elt="this"
+                  {{if .BuildActive}}disabled{{end}}
+                  class="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-40">
+            {{template "icon-trash-2" "h-3.5 w-3.5"}} Delete
+          </button>
+        </div>
+      </div>
+
+      {{if .Expanded}}
+      <div class="border-t border-border">
+        <div class="px-5 py-5">
+          <div class="rounded-xl border border-border bg-muted/40 p-4" {{if .WaitingForStartup}}title="Waiting for startup script…"{{end}}>
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <p class="text-sm font-medium">Open with</p>
+              <p class="text-xs text-muted-foreground">{{.ConnectionStatus}}</p>
+            </div>
+            <div class="flex flex-wrap justify-start gap-2">
+              {{template "access_buttons_full" .}}
+            </div>
+            <div id="desktop-error-{{.ID}}" class="mt-2"></div>
+          </div>
+
+          <div class="mt-4 border-t border-line pt-3">
+            <button type="button" aria-expanded="{{if .BuildLogsOpen}}true{{else}}false{{end}}"
+                    hx-get="/fragments/workspaces?expanded={{$.Expanded}}&logs={{.BuildToggleLogs}}"
+                    hx-target="#workspace-list-region" hx-swap="outerHTML"
+                    class="flex w-full cursor-pointer items-center justify-between gap-3 text-left text-sm font-medium text-ink">
+              <span class="flex items-center gap-2">
+                <span class="text-ink-muted">{{if .BuildLogsOpen}}▾{{else}}▸{{end}}</span>
+                Build logs
+                {{if .LogsActive}}<span class="rounded-full bg-amber-100 px-2 py-0.5 font-mono text-[10px] tracking-wide text-warn uppercase">live</span>{{end}}
+              </span>
+            </button>
+            {{if .BuildLogsOpen}}
+            <div class="mt-3 overflow-hidden rounded-xl border border-ink/10 bg-ink">
+              <pre class="flex max-h-64 flex-col-reverse overflow-auto px-3 py-3 font-mono text-[11px] leading-5 whitespace-pre-wrap"
+                   hx-get="/fragments/workspaces/{{.Name}}/build-logs/{{.LatestBuild.ID}}?active={{if .LogsActive}}1{{else}}0{{end}}"
+                   hx-trigger="load{{if .LogsActive}}, every 5s{{end}}" hx-swap="innerHTML"><div class="text-slate-400">loading…</div></pre>
+            </div>
+            {{end}}
+          </div>
+
+          <div class="mt-3 border-t border-line pt-3">
+            <button type="button" aria-expanded="{{if .StartupLogsOpen}}true{{else}}false{{end}}"
+                    hx-get="/fragments/workspaces?expanded={{$.Expanded}}&logs={{.StartupToggleLogs}}"
+                    hx-target="#workspace-list-region" hx-swap="outerHTML"
+                    class="flex w-full cursor-pointer items-center justify-between gap-3 text-left text-sm font-medium text-ink">
+              <span class="flex items-center gap-2">
+                <span class="text-ink-muted">{{if .StartupLogsOpen}}▾{{else}}▸{{end}}</span>
+                Startup script
+                {{if .Starting}}<span class="rounded-full bg-amber-100 px-2 py-0.5 font-mono text-[10px] tracking-wide text-warn uppercase">live</span>{{end}}
+              </span>
+            </button>
+            {{if .StartupLogsOpen}}
+            <div class="mt-3 overflow-hidden rounded-xl border border-ink/10 bg-ink">
+              <pre class="flex max-h-64 flex-col-reverse overflow-auto px-3 py-3 font-mono text-[11px] leading-5 whitespace-pre-wrap"
+                   hx-get="/fragments/workspaces/{{.Name}}/startup-logs?active={{if .Starting}}1{{else}}0{{end}}"
+                   hx-trigger="load, every 5s" hx-swap="innerHTML"><div class="text-slate-400">loading…</div></pre>
+            </div>
+            {{end}}
+          </div>
+        </div>
+      </div>
+      {{end}}
+    </li>
+    {{end}}
+  </ul>
+
+  {{if .DeleteError}}
+  <div class="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{{.DeleteError}}</div>
+  {{end}}
+</div>

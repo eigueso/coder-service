@@ -1,0 +1,3 @@
+{{if .ErrorMessage}}<div class="font-mono text-xs text-red-300" role="alert">{{.ErrorMessage}}</div>
+{{else if not .Lines}}<div class="font-mono text-xs text-slate-400">{{.EmptyMessage}}</div>
+{{else}}{{range .Lines}}<div class="{{.LevelClass}}"><span class="text-slate-500">{{.Prefix}}</span> {{.Output}}</div>{{end}}{{end}}

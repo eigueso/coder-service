@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{template "head" .}}
+  <title>Workspaces · Coder Service</title>
+</head>
+<body>
+<main class="min-h-screen bg-background">
+  <header class="border-b border-border bg-background/95 backdrop-blur">
+    <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+      <a href="/workspaces" class="flex items-center gap-3">
+        <span class="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">{{template "icon-boxes" "h-5 w-5"}}</span>
+        <span class="text-sm font-semibold tracking-tight">Coder Service</span>
+      </a>
+      <button type="button" hx-post="/logout"
+              class="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+        {{template "icon-log-out" "h-4 w-4"}}
+        <span class="hidden sm:inline">Sign out</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="group mx-auto max-w-6xl px-5 py-9 sm:px-8 sm:py-12">
+    <div class="mb-9 flex flex-wrap items-end justify-between gap-5">
+      <div class="max-w-2xl">
+        <p class="mb-3 flex items-center gap-2 text-sm font-medium text-primary">{{template "icon-sparkles" "h-4 w-4"}} Development environments</p>
+        <h1 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Your workspaces</h1>
+        <p class="mt-3 text-base leading-7 text-muted-foreground">Open what you need now, or create a fresh environment when you’re ready to start something new.</p>
+      </div>
+      <label class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground shadow transition-colors select-none hover:bg-primary/90 has-focus-visible:ring-2 has-focus-visible:ring-ring">
+        <input type="checkbox" id="create-toggle" class="peer sr-only" {{if .CreateOpen}}checked{{end}} />
+        {{template "icon-plus" "h-4 w-4"}}
+        <span class="peer-checked:hidden">New workspace</span>
+        <span class="hidden peer-checked:inline">Close setup</span>
+      </label>
+    </div>
+
+    <section id="create-panel" class="mb-10 hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm group-has-checked:block">
+      <div class="border-b border-border px-5 py-5 sm:px-6">
+        <div class="flex items-start gap-3">
+          <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">{{template "icon-plus" "h-5 w-5"}}</span>
+          <div>
+            <h2 class="font-semibold text-card-foreground">New workspace</h2>
+            <p class="mt-0.5 text-sm text-muted-foreground">Choose resources for your Kubernetes workspace.</p>
+          </div>
+        </div>
+      </div>
+
+      <form hx-post="/workspaces/create" hx-target="#create-error" hx-swap="innerHTML"
+            hx-disabled-elt="find button[type='submit']"
+            class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-6">
+        <label class="text-sm font-medium sm:col-span-2 lg:col-span-3">
+          Name
+          {{template "ws-name-input"}}
+          {{template "name_suggestion.html" .NameSuggestion}}
+        </label>
+
+        <label class="text-sm font-medium sm:col-span-1">
+          CPU
+          <select name="cpu" class="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+            <option value="2">2 cores</option>
+            <option value="4">4 cores</option>
+            <option value="6">6 cores</option>
+            <option value="8">8 cores</option>
+          </select>
+        </label>
+
+        <label class="text-sm font-medium sm:col-span-1">
+          Memory
+          <select name="memory" class="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+            <option value="2">2 GB</option>
+            <option value="4">4 GB</option>
+            <option value="6">6 GB</option>
+            <option value="8">8 GB</option>
+          </select>
+        </label>
+
+        <label class="text-sm font-medium sm:col-span-1">
+          Disk (GB)
+          <input type="number" name="disk" min="1" max="99999" required value="10"
+                 class="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20" />
+        </label>
+
+        <div class="flex flex-col justify-end gap-2 sm:col-span-2 lg:col-span-4">
+          <div id="create-error"></div>
+          <p class="flex items-center gap-2 text-xs text-muted-foreground">{{template "icon-cpu" "h-3.5 w-3.5"}} Template: <span class="font-medium text-foreground">{{.TemplateName}}</span></p>
+        </div>
+
+        <div class="flex items-end justify-end sm:col-span-2 lg:col-span-2">
+          <button type="submit"
+                  class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
+            {{template "icon-plus" "h-4 w-4"}} Create workspace
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="mt-10">
+      <div class="mb-4 flex items-baseline justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold">Active workspaces</h2>
+          <p class="mt-1 text-sm text-muted-foreground">Your running environments stay front and center.</p>
+        </div>
+      </div>
+      {{template "workspace_list.html" .List}}
+    </section>
+  </div>
+</main>
+</body>
+</html>

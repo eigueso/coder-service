@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{template "head" .}}
+  <title>Sign in · Coder Service</title>
+</head>
+<body>
+<main class="grid min-h-screen bg-background lg:grid-cols-[1.15fr_0.85fr]">
+  <section class="hidden bg-zinc-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+    <div class="flex items-center gap-3 text-sm font-semibold">
+      <span class="grid h-9 w-9 place-items-center rounded-lg bg-white text-zinc-950">{{template "icon-boxes" "h-5 w-5"}}</span>
+      Coder Service
+    </div>
+    <div class="max-w-md">
+      <p class="text-sm font-medium text-zinc-400">Cloud development environments</p>
+      <h1 class="mt-4 text-4xl font-semibold leading-tight tracking-tight">A focused place to build, from any machine.</h1>
+      <p class="mt-5 leading-7 text-zinc-400">Launch an environment that is ready for your code, editor, and terminal in minutes.</p>
+    </div>
+    <p class="text-sm text-zinc-500">Secure workspace access, powered by Coder.</p>
+  </section>
+  <section class="mx-auto flex w-full max-w-md flex-col justify-center px-6 py-12">
+    <div class="mb-8 lg:hidden"><span class="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground">{{template "icon-boxes" "h-5 w-5"}}</span></div>
+    <div class="mb-7">
+      <h1 class="text-3xl font-semibold tracking-tight text-foreground">Welcome back</h1>
+      <p class="mt-2 text-sm leading-6 text-muted-foreground">Sign in with your Coder email to access your workspaces.</p>
+    </div>
+    <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <form hx-post="/login" hx-target="#login-error" hx-swap="innerHTML" hx-disabled-elt="find button[type='submit']">
+        <label class="block text-sm font-medium">
+          Email address
+          <input type="email" name="email" autocomplete="username" required placeholder="you@company.com"
+                 class="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20" />
+        </label>
+        <div id="login-error"></div>
+        <button type="submit"
+                class="mt-6 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+          Continue {{template "icon-arrow-up-right" "h-4 w-4"}}
+        </button>
+      </form>
+    </div>
+    <p class="mt-5 text-center text-xs leading-5 text-muted-foreground">Your email is used to securely connect you to Coder. No password is required.</p>
+  </section>
+</main>
+</body>
+</html>

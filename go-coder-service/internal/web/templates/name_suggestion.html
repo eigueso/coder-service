@@ -1,0 +1,9 @@
+{{define "ws-name-input"}}<input id="ws-name" name="name" required pattern="^[a-zA-Z0-9]([a-zA-Z0-9-]{0,31})$" title="Letters, numbers, hyphens. Max 32 chars." placeholder="my-workspace" {{if and . .Applied}}value="{{.Applied}}" hx-swap-oob="true"{{end}} class="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20" />{{end}}
+
+<p id="name-suggestion" class="mt-2 text-xs font-normal text-muted-foreground">
+  Need a suggestion?
+  <button type="button"
+          hx-get="/fragments/name-suggestion?apply={{.Suggestion}}" hx-target="#name-suggestion" hx-swap="outerHTML"
+          class="font-medium text-primary underline-offset-2 hover:underline">{{.Suggestion}}</button>
+</p>
+{{if .Applied}}{{template "ws-name-input" .}}{{end}}

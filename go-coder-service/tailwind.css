@@ -1,0 +1,66 @@
+/* Tailwind v4 input for go-coder-service.
+   Build: npx -y @tailwindcss/cli@4 -i tailwind.css -o internal/web/static/css/app.css --minify
+   Tokens ported from frontend/src/index.css. */
+@import 'tailwindcss';
+
+@source "./internal/web/templates";
+@source "./internal/web/static/js";
+
+@theme {
+  --font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-ink: #0f1c1a;
+  --color-ink-muted: #4a5c58;
+  --color-surface: #f3f6f4;
+  --color-panel: #ffffff;
+  --color-line: #d5ddd9;
+  --color-accent: #f4f4f5;
+  --color-accent-foreground: #18181b;
+  --color-accent-strong: #115e59;
+  --color-accent-soft: #ccfbf1;
+  --color-danger: #b42318;
+  --color-danger-soft: #fee4e2;
+  --color-warn: #b54708;
+  --color-ok: #067647;
+  --color-background: #ffffff;
+  --color-foreground: #18181b;
+  --color-card: #ffffff;
+  --color-card-foreground: #18181b;
+  --color-primary: #18181b;
+  --color-primary-foreground: #fafafa;
+  --color-secondary: #f4f4f5;
+  --color-secondary-foreground: #18181b;
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #71717a;
+  --color-border: #e4e4e7;
+  --color-input: #e4e4e7;
+  --color-ring: #a1a1aa;
+  --color-destructive: #dc2626;
+}
+
+@layer base {
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    @apply bg-background text-foreground;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
